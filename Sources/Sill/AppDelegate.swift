@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let updaterController = SPUStandardUpdaterController(
         startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil
     )
+    private let settingsWindow = SettingsWindowController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         panelController = StackPanelController(store: store)
@@ -23,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "영역/창 캡처 (⇧⌘4)", action: #selector(captureInteractive), keyEquivalent: "")
         menu.addItem(withTitle: "전체 화면 캡처 (⇧⌘3)", action: #selector(captureFullScreen), keyEquivalent: "")
         menu.addItem(.separator())
+        menu.addItem(withTitle: "설정...", action: #selector(openSettings), keyEquivalent: ",")
         let updateItem = NSMenuItem(
             title: "업데이트 확인...",
             action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)),
@@ -51,5 +53,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func captureFullScreen() {
         capture.captureFullScreen()
+    }
+
+    @objc private func openSettings() {
+        settingsWindow.show()
     }
 }
