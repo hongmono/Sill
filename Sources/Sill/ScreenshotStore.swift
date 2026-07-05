@@ -21,7 +21,10 @@ final class ScreenshotStore: ObservableObject {
 
     func add(url: URL) {
         guard let image = NSImage(contentsOf: url) else {
-            try? FileManager.default.removeItem(at: url) // 로드 불가한 파일은 UI에서 지울 수 없으니 즉시 정리
+            // 로드 불가한 파일 정리는 앱이 관리하는 임시 폴더만 — 사용자 폴더 파일은 건드리지 않는다
+            if url.deletingLastPathComponent().path == Self.directory.path {
+                try? FileManager.default.removeItem(at: url)
+            }
             return
         }
         let isManaged = url.deletingLastPathComponent().path == Self.directory.path
