@@ -52,9 +52,11 @@ final class StackPanelController {
             return
         }
         let visible = screen.visibleFrame
-        let height = min(CGFloat(count) * itemHeight + 16, visible.height)
+        let margin: CGFloat = 16
+        let height = min(CGFloat(count) * itemHeight + 16, visible.height - margin * 2)
+        // 우측 하단 앵커: y는 하단 마진에 고정, 항목이 늘면 위로 자람
         panel.setFrame(
-            NSRect(x: visible.maxX - panelWidth, y: visible.midY - height / 2,
+            NSRect(x: visible.maxX - panelWidth - margin, y: visible.minY + margin,
                    width: panelWidth, height: height),
             display: true
         )
