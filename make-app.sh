@@ -15,5 +15,9 @@ SPARKLE_FW="$(find .build/artifacts -type d -name Sparkle.framework -path "*maco
 cp -R "$SPARKLE_FW" "$APP/Contents/Frameworks/"
 install_name_tool -add_rpath @executable_path/../Frameworks "$APP/Contents/MacOS/Sill" 2>/dev/null || true
 
-codesign --force --deep --sign - "$APP" # ad-hoc 서명: 화면 기록 권한(TCC)이 안정적으로 유지되게 함
-echo "built: $APP"
+# Developer ID로 서명해야 재빌드해도 화면 기록 권한(TCC)이 유지된다.
+# ad-hoc(-)은 빌드마다 신원이 바뀌어 권한이 매번 초기화됨. 인증서 없으면 ad-hoc 폴백.
+IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
+  | sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -1)"
+codesign --force --deep --sign "${IDENTITY:--}" "$APP"
+echo "built: $APP (signed: ${IDENTITY:-ad-hoc})"
