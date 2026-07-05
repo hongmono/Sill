@@ -11,6 +11,8 @@ struct StackView: View {
                     ThumbnailView(
                         shot: shot,
                         dragEnded: { store.removeAfterDrag(shot) },
+                        copy: { store.copy(shot) },
+                        saveAs: { store.saveAs(shot) },
                         close: { store.remove(shot) }
                     )
                 }
@@ -23,6 +25,8 @@ struct StackView: View {
 struct ThumbnailView: View {
     let shot: ScreenshotStore.Screenshot
     let dragEnded: () -> Void
+    let copy: () -> Void
+    let saveAs: () -> Void
     let close: () -> Void
     @State private var hovering = false
 
@@ -37,7 +41,7 @@ struct ThumbnailView: View {
                     .stroke(Color.black.opacity(0.2), lineWidth: 1)
             )
             .shadow(radius: 4)
-            .overlay(DragArea(shot: shot, dragEnded: dragEnded))
+            .overlay(DragArea(shot: shot, dragEnded: dragEnded, copy: copy, saveAs: saveAs))
             .overlay(alignment: .topTrailing) {
                 if hovering {
                     Button(action: close) {
@@ -57,6 +61,8 @@ struct ThumbnailView: View {
 struct DragArea: NSViewRepresentable {
     let shot: ScreenshotStore.Screenshot
     let dragEnded: () -> Void
+    let copy: () -> Void
+    let saveAs: () -> Void
 
     func makeNSView(context: Context) -> DragNSView { DragNSView() }
 
@@ -64,6 +70,8 @@ struct DragArea: NSViewRepresentable {
         view.url = shot.url
         view.image = shot.image
         view.onDragEnded = dragEnded
+        view.onCopy = copy
+        view.onSaveAs = saveAs
     }
 }
 
@@ -71,6 +79,8 @@ final class DragNSView: NSView, NSDraggingSource {
     var url: URL?
     var image: NSImage?
     var onDragEnded: (() -> Void)?
+    var onCopy: (() -> Void)?
+    var onSaveAs: (() -> Void)?
     private var mouseDownLocation: NSPoint = .zero
     private var isDragging = false
 
@@ -99,5 +109,24 @@ final class DragNSView: NSView, NSDraggingSource {
                          endedAt screenPoint: NSPoint,
                          operation: NSDragOperation) {
         if operation != [] { onDragEnded?() } // 실제 드롭됐을 때만 (취소 시 유지)
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        let menu = NSMenu()
+        let copyItem = NSMenuItem(title: "클립보드에 복사", action: #selector(copyAction), keyEquivalent: "")
+        copyItem.target = self
+        menu.addItem(copyItem)
+        let saveItem = NSMenuItem(title: "다른 이름으로 저장...", action: #selector(saveAsAction), keyEquivalent: "")
+        saveItem.target = self
+        menu.addItem(saveItem)
+        NSMenu.popUpContextMenu(menu, with: event, for: self)
+    }
+
+    @objc private func copyAction() {
+        onCopy?()
+    }
+
+    @objc private func saveAsAction() {
+        onSaveAs?()
     }
 }
