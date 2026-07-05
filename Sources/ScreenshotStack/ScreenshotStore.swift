@@ -19,7 +19,10 @@ final class ScreenshotStore: ObservableObject {
     }()
 
     func add(url: URL) {
-        guard let image = NSImage(contentsOf: url) else { return }
+        guard let image = NSImage(contentsOf: url) else {
+            try? FileManager.default.removeItem(at: url) // 로드 불가한 파일은 UI에서 지울 수 없으니 즉시 정리
+            return
+        }
         screenshots.insert(Screenshot(url: url, image: image), at: 0)
         selectedID = screenshots.first?.id // 새 캡처가 곧바로 ⌘C 대상
     }
