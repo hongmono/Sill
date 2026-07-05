@@ -60,6 +60,7 @@ final class ScreenshotStore: ObservableObject {
         NSApp.activate(ignoringOtherApps: true) // accessory 앱이라 패널을 앞으로
         panel.begin { response in
             guard response == .OK, let destination = panel.url else { return }
+            guard destination != shot.url else { return } // 자기 자신에 저장 = no-op, 원본 보호
             try? FileManager.default.removeItem(at: destination) // 패널이 덮어쓰기 확인을 이미 받음
             try? FileManager.default.copyItem(at: shot.url, to: destination)
         }
