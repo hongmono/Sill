@@ -8,6 +8,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Frameworks"
 cp .build/release/Sill "$APP/Contents/MacOS/"
 cp Info.plist "$APP/Contents/"
+mkdir -p "$APP/Contents/Resources" && cp Resources/AppIcon.icns "$APP/Contents/Resources/"
 
 # Sparkle.framework 임베딩 (SPM 바이너리 아티팩트에서 복사)
 SPARKLE_FW="$(find .build/artifacts -type d -name Sparkle.framework -path "*macos*" | head -1)"
