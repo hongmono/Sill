@@ -3,7 +3,6 @@ import SwiftUI
 
 struct StackView: View {
     @ObservedObject var store: ScreenshotStore
-    let makeKey: () -> Void
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -11,11 +10,6 @@ struct StackView: View {
                 ForEach(store.screenshots) { shot in
                     ThumbnailView(
                         shot: shot,
-                        isSelected: store.selectedID == shot.id,
-                        select: {
-                            store.selectedID = shot.id
-                            makeKey() // 패널을 key로 만들어야 ⌘C가 패널에 도착
-                        },
                         dragEnded: { store.removeAfterDrag(shot) },
                         close: { store.remove(shot) }
                     )
@@ -28,8 +22,6 @@ struct StackView: View {
 
 struct ThumbnailView: View {
     let shot: ScreenshotStore.Screenshot
-    let isSelected: Bool
-    let select: () -> Void
     let dragEnded: () -> Void
     let close: () -> Void
     @State private var hovering = false
@@ -42,11 +34,10 @@ struct ThumbnailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.accentColor : Color.black.opacity(0.2),
-                            lineWidth: isSelected ? 3 : 1)
+                    .stroke(Color.black.opacity(0.2), lineWidth: 1)
             )
             .shadow(radius: 4)
-            .overlay(DragSelectArea(shot: shot, select: select, dragEnded: dragEnded))
+            .overlay(DragArea(shot: shot, dragEnded: dragEnded))
             .overlay(alignment: .topTrailing) {
                 if hovering {
                     Button(action: close) {
@@ -63,25 +54,22 @@ struct ThumbnailView: View {
 }
 
 /// SwiftUI onDrag는 드롭 완료 콜백이 없다 — 드롭 후 스택에서 제거하려면 AppKit 드래그 소스 필요.
-struct DragSelectArea: NSViewRepresentable {
+struct DragArea: NSViewRepresentable {
     let shot: ScreenshotStore.Screenshot
-    let select: () -> Void
     let dragEnded: () -> Void
 
-    func makeNSView(context: Context) -> DragSelectNSView { DragSelectNSView() }
+    func makeNSView(context: Context) -> DragNSView { DragNSView() }
 
-    func updateNSView(_ view: DragSelectNSView, context: Context) {
+    func updateNSView(_ view: DragNSView, context: Context) {
         view.url = shot.url
         view.image = shot.image
-        view.onSelect = select
         view.onDragEnded = dragEnded
     }
 }
 
-final class DragSelectNSView: NSView, NSDraggingSource {
+final class DragNSView: NSView, NSDraggingSource {
     var url: URL?
     var image: NSImage?
-    var onSelect: (() -> Void)?
     var onDragEnded: (() -> Void)?
     private var mouseDownLocation: NSPoint = .zero
     private var isDragging = false
@@ -100,10 +88,6 @@ final class DragSelectNSView: NSView, NSDraggingSource {
         let item = NSDraggingItem(pasteboardWriter: url as NSURL)
         item.setDraggingFrame(bounds, contents: image)
         beginDraggingSession(with: [item], event: event, source: self)
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        if !isDragging { onSelect?() }
     }
 
     func draggingSession(_ session: NSDraggingSession,

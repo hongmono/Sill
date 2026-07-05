@@ -2,30 +2,14 @@ import AppKit
 import Combine
 import SwiftUI
 
-/// borderless 패널은 기본적으로 key window가 될 수 없어 ⌘C를 못 받는다 — 오버라이드 필요.
-final class KeyablePanel: NSPanel {
-    var onCopy: (() -> Void)?
-
-    override var canBecomeKey: Bool { true }
-
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.modifierFlags.contains(.command),
-           event.charactersIgnoringModifiers == "c" {
-            onCopy?()
-            return true
-        }
-        return super.performKeyEquivalent(with: event)
-    }
-}
-
 final class StackPanelController {
-    private let panel: KeyablePanel
+    private let panel: NSPanel
     private var cancellable: AnyCancellable?
     private let panelWidth: CGFloat = 176
     private let itemHeight: CGFloat = 112 // 썸네일 104 + 간격 8
 
     init(store: ScreenshotStore) {
-        panel = KeyablePanel(
+        panel = NSPanel(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
@@ -36,10 +20,8 @@ final class StackPanelController {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hidesOnDeactivate = false
-        panel.onCopy = { [weak store] in store?.copySelected() }
 
-        let view = StackView(store: store, makeKey: { [weak panel] in panel?.makeKey() })
-        panel.contentView = NSHostingView(rootView: view)
+        panel.contentView = NSHostingView(rootView: StackView(store: store))
 
         cancellable = store.$screenshots
             .receive(on: DispatchQueue.main)
