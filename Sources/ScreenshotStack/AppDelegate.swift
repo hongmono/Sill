@@ -4,8 +4,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = ScreenshotStore()
     private lazy var capture = CaptureService(store: store)
     private var statusItem: NSStatusItem!
+    private var panelController: StackPanelController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        panelController = StackPanelController(store: store)
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.image = NSImage(
             systemSymbolName: "camera.viewfinder",
