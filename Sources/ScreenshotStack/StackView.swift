@@ -43,6 +43,8 @@ struct ThumbnailView: View {
                             lineWidth: isSelected ? 3 : 1)
             )
             .shadow(radius: 4)
+            .onTapGesture(perform: select)
+            .onDrag { NSItemProvider(object: shot.url as NSURL) }
             .overlay(alignment: .topTrailing) {
                 if hovering {
                     Button(action: close) {
