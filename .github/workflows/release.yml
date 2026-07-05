@@ -98,12 +98,33 @@ jobs:
 
           APP=Sill.app
           rm -rf "$APP"
-          mkdir -p "$APP/Contents/MacOS"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Frameworks"
           cp .build/apple/Products/Release/Sill "$APP/Contents/MacOS/"
           cp Info.plist "$APP/Contents/"
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "$APP/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string ${VERSION}" "$APP/Contents/Info.plist" \
             || /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION}" "$APP/Contents/Info.plist"
+
+          # Sparkle.framework 임베딩
+          SPARKLE_FW="$(find .build/artifacts -type d -name Sparkle.framework -path "*macos*" | head -1)"
+          cp -R "$SPARKLE_FW" "$APP/Contents/Frameworks/"
+          install_name_tool -add_rpath @executable_path/../Frameworks "$APP/Contents/MacOS/Sill" || true
+
+          # Sparkle 내부 실행물부터 서명 (Lathe와 동일한 순서)
+          SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
+          codesign --force --sign "$SIGNING_IDENTITY" --timestamp --options runtime \
+            --preserve-metadata=identifier,entitlements \
+            "$SPARKLE/Versions/B/Autoupdate"
+          codesign --force --sign "$SIGNING_IDENTITY" --timestamp --options runtime \
+            --preserve-metadata=identifier,entitlements \
+            "$SPARKLE/Versions/B/XPCServices/Downloader.xpc"
+          codesign --force --sign "$SIGNING_IDENTITY" --timestamp --options runtime \
+            --preserve-metadata=identifier,entitlements \
+            "$SPARKLE/Versions/B/XPCServices/Installer.xpc"
+          codesign --force --sign "$SIGNING_IDENTITY" --timestamp --options runtime \
+            --preserve-metadata=identifier,entitlements \
+            "$SPARKLE/Versions/B/Updater.app"
+          codesign --force --sign "$SIGNING_IDENTITY" --timestamp --options runtime "$SPARKLE"
 
           codesign --force --sign "$SIGNING_IDENTITY" --timestamp --options runtime "$APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
@@ -175,6 +196,32 @@ jobs:
           xcrun stapler validate "dist/Sill-${TAG}.dmg"
           spctl -a -vv -t open --context context:primary-signature "dist/Sill-${TAG}.dmg"
 
+      - name: Generate Sparkle appcast
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          TAG: ${{ steps.release.outputs.tag }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          : "${SPARKLE_PRIVATE_KEY:?Missing SPARKLE_PRIVATE_KEY secret}"
+
+          GENERATE_APPCAST="$(find .build/artifacts -name generate_appcast -type f | head -1)"
+          if [[ -z "$GENERATE_APPCAST" ]]; then
+            echo "Could not find Sparkle generate_appcast tool" >&2
+            exit 1
+          fi
+
+          mkdir -p dist/sparkle
+          cp "dist/Sill-${TAG}.dmg" "dist/sparkle/Sill-${TAG}.dmg"
+
+          echo "$SPARKLE_PRIVATE_KEY" | "$GENERATE_APPCAST" \
+            --ed-key-file - \
+            --download-url-prefix "https://github.com/hongmono/Sill/releases/download/${TAG}/" \
+            --link "https://github.com/hongmono/Sill/releases/tag/${TAG}" \
+            --versions "$VERSION" \
+            --maximum-versions 1 \
+            -o "$(pwd)/dist/appcast.xml" \
+            dist/sparkle
+
       - name: Create release tag
         env:
           TAG: ${{ steps.release.outputs.tag }}
@@ -188,7 +235,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release.outputs.tag }}
-          files: dist/Sill-${{ steps.release.outputs.tag }}.dmg
+          files: |
+            dist/Sill-${{ steps.release.outputs.tag }}.dmg
+            dist/appcast.xml
           fail_on_unmatched_files: true
           generate_release_notes: true
         env:

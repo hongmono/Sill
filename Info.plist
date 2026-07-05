@@ -18,5 +18,11 @@
     <true/>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>SUFeedURL</key>
+    <string>https://github.com/hongmono/Sill/releases/latest/download/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>2VzsRT4zVK1HpMKb6p0gOIVNSXHAadl54RQmv29Sxu8=</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
 </dict>
 </plist>
