@@ -96,10 +96,10 @@ jobs:
         run: |
           : "${SIGNING_IDENTITY:?Missing signing identity}"
 
-          APP=ScreenshotStack.app
+          APP=Sill.app
           rm -rf "$APP"
           mkdir -p "$APP/Contents/MacOS"
-          cp .build/apple/Products/Release/ScreenshotStack "$APP/Contents/MacOS/"
+          cp .build/apple/Products/Release/Sill "$APP/Contents/MacOS/"
           cp Info.plist "$APP/Contents/"
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "$APP/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string ${VERSION}" "$APP/Contents/Info.plist" \
@@ -117,20 +117,20 @@ jobs:
 
           rm -rf dist
           mkdir -p dist/dmgroot
-          cp -R ScreenshotStack.app dist/dmgroot/
+          cp -R Sill.app dist/dmgroot/
           ln -s /Applications dist/dmgroot/Applications
           hdiutil create \
-            -volname "ScreenshotStack ${TAG}" \
+            -volname "Sill ${TAG}" \
             -srcfolder dist/dmgroot \
             -ov \
             -format UDZO \
-            "dist/ScreenshotStack-${TAG}.dmg"
-          hdiutil verify "dist/ScreenshotStack-${TAG}.dmg"
+            "dist/Sill-${TAG}.dmg"
+          hdiutil verify "dist/Sill-${TAG}.dmg"
           codesign --force \
             --sign "$SIGNING_IDENTITY" \
             --timestamp \
-            "dist/ScreenshotStack-${TAG}.dmg"
-          codesign --verify --verbose=2 "dist/ScreenshotStack-${TAG}.dmg"
+            "dist/Sill-${TAG}.dmg"
+          codesign --verify --verbose=2 "dist/Sill-${TAG}.dmg"
 
       - name: Notarize and staple
         env:
@@ -149,7 +149,7 @@ jobs:
 
           SUBMISSION_JSON="/tmp/notary-submit.json"
           set +e
-          xcrun notarytool submit "dist/ScreenshotStack-${TAG}.dmg" \
+          xcrun notarytool submit "dist/Sill-${TAG}.dmg" \
             --key "$NOTARY_KEY_PATH" \
             --key-id "$APPLE_NOTARY_KEY_ID" \
             --issuer "$APPLE_NOTARY_ISSUER_ID" \
@@ -171,9 +171,9 @@ jobs:
             exit 1
           fi
 
-          xcrun stapler staple "dist/ScreenshotStack-${TAG}.dmg"
-          xcrun stapler validate "dist/ScreenshotStack-${TAG}.dmg"
-          spctl -a -vv -t open --context context:primary-signature "dist/ScreenshotStack-${TAG}.dmg"
+          xcrun stapler staple "dist/Sill-${TAG}.dmg"
+          xcrun stapler validate "dist/Sill-${TAG}.dmg"
+          spctl -a -vv -t open --context context:primary-signature "dist/Sill-${TAG}.dmg"
 
       - name: Create release tag
         env:
@@ -188,7 +188,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release.outputs.tag }}
-          files: dist/ScreenshotStack-${{ steps.release.outputs.tag }}.dmg
+          files: dist/Sill-${{ steps.release.outputs.tag }}.dmg
           fail_on_unmatched_files: true
           generate_release_notes: true
         env:

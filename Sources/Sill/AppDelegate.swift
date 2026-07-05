@@ -13,7 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.image = NSImage(
             systemSymbolName: "camera.viewfinder",
-            accessibilityDescription: "Screenshot Stack"
+            accessibilityDescription: "Sill"
         )
         let menu = NSMenu()
         menu.addItem(withTitle: "영역/창 캡처 (⇧⌘4)", action: #selector(captureInteractive), keyEquivalent: "")

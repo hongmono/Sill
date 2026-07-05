@@ -12,7 +12,7 @@ final class ScreenshotStore: ObservableObject {
 
     static let directory: URL = {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("ScreenshotStack")
+            .appendingPathComponent("Sill")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }()

@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key>
-    <string>com.hongmono.ScreenshotStack</string>
+    <string>com.hongmono.Sill</string>
     <key>CFBundleName</key>
-    <string>ScreenshotStack</string>
+    <string>Sill</string>
     <key>CFBundleExecutable</key>
-    <string>ScreenshotStack</string>
+    <string>Sill</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
