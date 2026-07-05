@@ -6,7 +6,7 @@ struct StackView: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 8) {
+            VStack(spacing: 16) {
                 ForEach(store.screenshots) { shot in
                     ThumbnailView(
                         shot: shot,
@@ -40,7 +40,7 @@ struct ThumbnailView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(Color.black.opacity(0.2), lineWidth: 1)
             )
-            .shadow(radius: 4)
+            .shadow(radius: hovering ? 8 : 4)
             .overlay(DragArea(shot: shot, dragEnded: dragEnded, copy: copy, saveAs: saveAs))
             .overlay(alignment: .topTrailing) {
                 if hovering {
@@ -51,8 +51,11 @@ struct ThumbnailView: View {
                     }
                     .buttonStyle(.plain)
                     .padding(4)
+                    .transition(.opacity)
                 }
             }
+            .scaleEffect(hovering ? 1.04 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: hovering)
             .onHover { hovering = $0 }
     }
 }

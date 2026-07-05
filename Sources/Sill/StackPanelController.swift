@@ -7,7 +7,7 @@ final class StackPanelController {
     private var cancellables: Set<AnyCancellable> = []
     private var count = 0
     private let panelWidth: CGFloat = 176
-    private let itemHeight: CGFloat = 112 // 썸네일 104 + 간격 8
+    private let itemHeight: CGFloat = 120 // 썸네일 104 + 간격 16
 
     init(store: ScreenshotStore) {
         panel = NSPanel(
@@ -46,7 +46,8 @@ final class StackPanelController {
         }
         let visible = screen.visibleFrame
         let margin: CGFloat = 16
-        let height = min(CGFloat(count) * itemHeight + 16, visible.height - margin * 2)
+        // 콘텐츠 정확 높이: 패딩 8*2 + 썸네일 104*n + 간격 16*(n-1) = 120n
+        let height = min(CGFloat(count) * itemHeight, visible.height - margin * 2)
         let x = AppSettings.shared.stackSide == .right
             ? visible.maxX - panelWidth - margin
             : visible.minX + margin
