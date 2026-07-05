@@ -2,6 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 import Sparkle
 
+// Swift 6(strict concurrency) 전환 시: Carbon 콜백과 AppSettings 격리 재검토 필요
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = ScreenshotStore()
