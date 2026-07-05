@@ -2,6 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 import Sparkle
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = ScreenshotStore()
     private lazy var capture = CaptureService(store: store)
