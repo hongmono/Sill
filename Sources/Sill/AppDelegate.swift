@@ -36,16 +36,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem.menu = menu
         // 시스템 기본 스크린샷 단축키(⇧⌘4/⇧⌘3)를 이 앱이 가로챈다 (Shottr/CleanShot 방식)
-        hotkeys.register(
+        let interactiveStatus = hotkeys.register(
             keyCode: UInt32(kVK_ANSI_4),
             modifiers: UInt32(cmdKey | shiftKey),
             id: 1
         ) { [weak self] in self?.capture.captureInteractive() }
-        hotkeys.register(
+        let fullScreenStatus = hotkeys.register(
             keyCode: UInt32(kVK_ANSI_3),
             modifiers: UInt32(cmdKey | shiftKey),
             id: 2
         ) { [weak self] in self?.capture.captureFullScreen() }
+        if interactiveStatus != noErr || fullScreenStatus != noErr {
+            let alert = NSAlert()
+            alert.messageText = "단축키 등록 실패"
+            alert.informativeText = "⇧⌘4/⇧⌘3을 다른 앱이 사용 중입니다. 메뉴바 아이콘의 메뉴로 캡처할 수 있습니다."
+            alert.runModal()
+        }
     }
 
     @objc private func captureInteractive() {

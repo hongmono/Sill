@@ -29,11 +29,13 @@ final class HotkeyManager {
         )
     }
 
-    func register(keyCode: UInt32, modifiers: UInt32, id: UInt32, handler: @escaping () -> Void) {
+    @discardableResult
+    func register(keyCode: UInt32, modifiers: UInt32, id: UInt32, handler: @escaping () -> Void) -> OSStatus {
         handlers[id] = handler
         var ref: EventHotKeyRef?
         let hotKeyID = EventHotKeyID(signature: OSType(0x5353_5441), id: id) // "SSTA"
-        RegisterEventHotKey(keyCode, modifiers, hotKeyID, GetApplicationEventTarget(), 0, &ref)
+        let status = RegisterEventHotKey(keyCode, modifiers, hotKeyID, GetApplicationEventTarget(), 0, &ref)
         hotKeyRefs.append(ref)
+        return status
     }
 }
