@@ -16,15 +16,23 @@ final class CaptureService {
         run(flags: [])
     }
 
+    /// 지연 후 전체 화면 캡처 (메뉴 열림 등 순간 포착용)
+    func captureFullScreen(afterSeconds seconds: Int) {
+        run(flags: ["-T", "\(seconds)"])
+    }
+
     private func run(flags: [String]) {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH.mm.ss.SSS"
-        let url = ScreenshotStore.directory
-            .appendingPathComponent("Screenshot \(formatter.string(from: Date())).png")
+        let settings = AppSettings.shared
+        let directory = settings.saveDirectory ?? ScreenshotStore.directory
+        let ext = settings.imageFormat.rawValue
+        let url = directory
+            .appendingPathComponent("Screenshot \(formatter.string(from: Date())).\(ext)")
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-        process.arguments = flags + [url.path]
+        process.arguments = flags + ["-t", ext, url.path]
         process.terminationHandler = { [weak store] _ in
             DispatchQueue.main.async {
                 // ESC로 취소하면 파일이 안 생긴다 — 그 경우 무시

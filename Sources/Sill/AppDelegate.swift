@@ -25,6 +25,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
         menu.addItem(withTitle: "영역/창 캡처 (⇧⌘4)", action: #selector(captureInteractive), keyEquivalent: "")
         menu.addItem(withTitle: "전체 화면 캡처 (⇧⌘3)", action: #selector(captureFullScreen), keyEquivalent: "")
+        let timerMenu = NSMenu()
+        timerMenu.addItem(withTitle: "3초 후", action: #selector(captureTimer3), keyEquivalent: "")
+        timerMenu.addItem(withTitle: "10초 후", action: #selector(captureTimer10), keyEquivalent: "")
+        let timerItem = NSMenuItem(title: "타이머 전체 캡처", action: nil, keyEquivalent: "")
+        timerItem.submenu = timerMenu
+        menu.addItem(timerItem)
         menu.addItem(.separator())
         menu.addItem(withTitle: "설정...", action: #selector(openSettings), keyEquivalent: ",")
         let updateItem = NSMenuItem(
@@ -61,6 +67,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func captureFullScreen() {
         capture.captureFullScreen()
+    }
+
+    @objc private func captureTimer3() {
+        capture.captureFullScreen(afterSeconds: 3)
+    }
+
+    @objc private func captureTimer10() {
+        capture.captureFullScreen(afterSeconds: 10)
     }
 
     @objc private func openSettings() {
