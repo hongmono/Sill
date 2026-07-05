@@ -2,6 +2,14 @@
 
 스크린샷이 화면 우측 하단 스택에 쌓이는 메뉴바 앱.
 
+## 설치
+
+```bash
+brew install hongmono/tap/sill
+```
+
+또는 [Releases](https://github.com/hongmono/Sill/releases)에서 DMG 다운로드. 업데이트는 앱이 자동 확인한다(Sparkle).
+
 ## 빌드
 
     ./make-app.sh && open Sill.app
@@ -28,4 +36,6 @@
 
 필요한 리포지토리 시크릿 (Lathe와 동일):
 `SIGNING_CERT_P12`, `SIGNING_CERT_PASSWORD`, `KEYCHAIN_PASSWORD`,
-`APPLE_NOTARY_KEY_P8_BASE64`, `APPLE_NOTARY_KEY_ID`, `APPLE_NOTARY_ISSUER_ID`
+`APPLE_NOTARY_KEY_P8_BASE64`, `APPLE_NOTARY_KEY_ID`, `APPLE_NOTARY_ISSUER_ID`,
+`SPARKLE_PRIVATE_KEY`, 그리고 [homebrew-tap](https://github.com/hongmono/homebrew-tap)
+자동 갱신용 `TAP_PUSH_TOKEN` (repo 권한 PAT, 없으면 tap 갱신만 스킵됨)

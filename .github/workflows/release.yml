@@ -242,3 +242,42 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Homebrew tap
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          TAG: ${{ steps.release.outputs.tag }}
+          TAP_PUSH_TOKEN: ${{ secrets.TAP_PUSH_TOKEN }}
+        run: |
+          if [[ -z "$TAP_PUSH_TOKEN" ]]; then
+            echo "TAP_PUSH_TOKEN 시크릿이 없어 Homebrew tap 갱신을 건너뜀"
+            exit 0
+          fi
+
+          SHA256="$(shasum -a 256 "dist/Sill-${TAG}.dmg" | awk '{print $1}')"
+          git clone --depth 1 "https://x-access-token:${TAP_PUSH_TOKEN}@github.com/hongmono/homebrew-tap.git" /tmp/tap
+          mkdir -p /tmp/tap/Casks
+          {
+            echo "cask \"sill\" do"
+            echo "  version \"${VERSION}\""
+            echo "  sha256 \"${SHA256}\""
+            echo ""
+            echo "  url \"https://github.com/hongmono/Sill/releases/download/v#{version}/Sill-v#{version}.dmg\""
+            echo "  name \"Sill\""
+            echo "  desc \"Menu bar screenshot app that stacks captures at the screen corner\""
+            echo "  homepage \"https://github.com/hongmono/Sill\""
+            echo ""
+            echo "  auto_updates true"
+            echo "  depends_on macos: :ventura"
+            echo ""
+            echo "  app \"Sill.app\""
+            echo ""
+            echo "  zap trash: \"~/Library/Application Support/Sill\""
+            echo "end"
+          } > /tmp/tap/Casks/sill.rb
+
+          cd /tmp/tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/sill.rb
+          git diff --cached --quiet || { git commit -m "sill ${VERSION}"; git push; }
