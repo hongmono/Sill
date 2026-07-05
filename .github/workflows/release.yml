@@ -1,0 +1,195 @@
+name: Release
+
+on:
+  push:
+    branches: ['release']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Optional version override (defaults to VERSION file, e.g. 1.0.0)'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show toolchain
+        run: swift --version
+
+      - name: Resolve release version
+        id: release
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          if [[ -n "$INPUT_VERSION" ]]; then
+            VERSION="$INPUT_VERSION"
+          else
+            VERSION="$(tr -d '[:space:]' < VERSION)"
+          fi
+
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+            echo "Refusing invalid version: $VERSION" >&2
+            exit 1
+          fi
+
+          TAG="v${VERSION}"
+          git fetch --tags --force
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "Tag already exists: ${TAG}" >&2
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Set up signing keychain
+        env:
+          CERT_P12_BASE64: ${{ secrets.SIGNING_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          : "${CERT_P12_BASE64:?Missing SIGNING_CERT_P12 secret}"
+          : "${CERT_PASSWORD:?Missing SIGNING_CERT_PASSWORD secret}"
+          : "${KEYCHAIN_PASSWORD:?Missing KEYCHAIN_PASSWORD secret}"
+
+          echo "$CERT_P12_BASE64" | base64 --decode > /tmp/cert.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security import /tmp/cert.p12 -k build.keychain \
+            -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: -s \
+            -k "$KEYCHAIN_PASSWORD" build.keychain
+          rm -f /tmp/cert.p12
+
+      - name: Resolve signing identity
+        id: signing
+        run: |
+          IDENTITY="$(
+            security find-identity -v -p codesigning build.keychain |
+            ruby -ne 'if $_ =~ /"([^"]*Developer ID Application[^"]*)"/; puts $1; exit; end'
+          )"
+          if [[ -z "$IDENTITY" ]]; then
+            echo "Could not find a Developer ID Application identity in build.keychain" >&2
+            exit 1
+          fi
+
+          echo "::add-mask::$IDENTITY"
+          echo "identity=$IDENTITY" >> "$GITHUB_OUTPUT"
+
+      - name: Build universal binary
+        run: swift build -c release --arch arm64 --arch x86_64
+
+      - name: Bundle and sign app
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          SIGNING_IDENTITY: ${{ steps.signing.outputs.identity }}
+        run: |
+          : "${SIGNING_IDENTITY:?Missing signing identity}"
+
+          APP=ScreenshotStack.app
+          rm -rf "$APP"
+          mkdir -p "$APP/Contents/MacOS"
+          cp .build/apple/Products/Release/ScreenshotStack "$APP/Contents/MacOS/"
+          cp Info.plist "$APP/Contents/"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "$APP/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string ${VERSION}" "$APP/Contents/Info.plist" \
+            || /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION}" "$APP/Contents/Info.plist"
+
+          codesign --force --sign "$SIGNING_IDENTITY" --timestamp --options runtime "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+
+      - name: Package DMG
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          SIGNING_IDENTITY: ${{ steps.signing.outputs.identity }}
+        run: |
+          : "${SIGNING_IDENTITY:?Missing signing identity}"
+
+          rm -rf dist
+          mkdir -p dist/dmgroot
+          cp -R ScreenshotStack.app dist/dmgroot/
+          ln -s /Applications dist/dmgroot/Applications
+          hdiutil create \
+            -volname "ScreenshotStack ${TAG}" \
+            -srcfolder dist/dmgroot \
+            -ov \
+            -format UDZO \
+            "dist/ScreenshotStack-${TAG}.dmg"
+          hdiutil verify "dist/ScreenshotStack-${TAG}.dmg"
+          codesign --force \
+            --sign "$SIGNING_IDENTITY" \
+            --timestamp \
+            "dist/ScreenshotStack-${TAG}.dmg"
+          codesign --verify --verbose=2 "dist/ScreenshotStack-${TAG}.dmg"
+
+      - name: Notarize and staple
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          APPLE_NOTARY_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARY_KEY_P8_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          : "${APPLE_NOTARY_KEY_P8_BASE64:?Missing APPLE_NOTARY_KEY_P8_BASE64 secret}"
+          : "${APPLE_NOTARY_KEY_ID:?Missing APPLE_NOTARY_KEY_ID secret}"
+          : "${APPLE_NOTARY_ISSUER_ID:?Missing APPLE_NOTARY_ISSUER_ID secret}"
+
+          NOTARY_KEY_PATH="/tmp/AuthKey_${APPLE_NOTARY_KEY_ID}.p8"
+          trap 'rm -f "$NOTARY_KEY_PATH"' EXIT
+          echo "$APPLE_NOTARY_KEY_P8_BASE64" | base64 --decode > "$NOTARY_KEY_PATH"
+
+          SUBMISSION_JSON="/tmp/notary-submit.json"
+          set +e
+          xcrun notarytool submit "dist/ScreenshotStack-${TAG}.dmg" \
+            --key "$NOTARY_KEY_PATH" \
+            --key-id "$APPLE_NOTARY_KEY_ID" \
+            --issuer "$APPLE_NOTARY_ISSUER_ID" \
+            --wait \
+            --output-format json | tee "$SUBMISSION_JSON"
+          NOTARY_EXIT=${PIPESTATUS[0]}
+          set -e
+
+          SUBMISSION_ID="$(ruby -rjson -e 'print JSON.parse(File.read(ARGV[0]))["id"].to_s' "$SUBMISSION_JSON")"
+          SUBMISSION_STATUS="$(ruby -rjson -e 'print JSON.parse(File.read(ARGV[0]))["status"].to_s' "$SUBMISSION_JSON")"
+          if [[ "$NOTARY_EXIT" -ne 0 || "$SUBMISSION_STATUS" != "Accepted" ]]; then
+            echo "Notarization failed with status: ${SUBMISSION_STATUS:-unknown}" >&2
+            if [[ -n "$SUBMISSION_ID" ]]; then
+              xcrun notarytool log "$SUBMISSION_ID" \
+                --key "$NOTARY_KEY_PATH" \
+                --key-id "$APPLE_NOTARY_KEY_ID" \
+                --issuer "$APPLE_NOTARY_ISSUER_ID" || true
+            fi
+            exit 1
+          fi
+
+          xcrun stapler staple "dist/ScreenshotStack-${TAG}.dmg"
+          xcrun stapler validate "dist/ScreenshotStack-${TAG}.dmg"
+          spctl -a -vv -t open --context context:primary-signature "dist/ScreenshotStack-${TAG}.dmg"
+
+      - name: Create release tag
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG" "$GITHUB_SHA"
+          git push origin "$TAG"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release.outputs.tag }}
+          files: dist/ScreenshotStack-${{ steps.release.outputs.tag }}.dmg
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
