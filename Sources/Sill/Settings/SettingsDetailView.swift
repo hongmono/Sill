@@ -23,6 +23,10 @@ struct SettingsDetailView: View {
             switch pane {
             case .general:
                 GeneralSettingsView(settings: settings)
+            case .capture:
+                CaptureSettingsView(settings: settings)
+            case .text:
+                TextSettingsView(settings: settings)
             case .about:
                 AboutSettingsView()
             }
