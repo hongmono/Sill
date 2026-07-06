@@ -1,12 +1,33 @@
 import AppKit
 import SwiftUI
+import Translation // .translationTask 모디파이어
 
-/// OCR 결과를 화면 중앙 카드로 표시. ESC=취소, Enter/⌘C=복사 후 닫기.
+/// OCR 카드의 표시 상태. 컨트롤러(복사)와 뷰(표시)가 공유한다.
+@MainActor
+final class OCRCardModel: ObservableObject {
+    let original: String
+    @Published var translation: String?
+    @Published var isTranslating = false
+    @Published var error: String?
+
+    init(original: String) { self.original = original }
+
+    /// 복사 대상 — 번역이 있으면 원문+번역, 없으면 원문.
+    var clipboardText: String {
+        if let translation, !translation.isEmpty {
+            return original + "\n\n" + translation
+        }
+        return original
+    }
+}
+
+/// OCR 결과를 화면 중앙 카드로 표시. ESC=취소, Enter/⌘C=복사 후 닫기, T=번역.
 @MainActor
 final class OCROverlayController {
     private let panel: KeyablePanel
     private var keyMonitor: Any?
-    private var text = ""
+    private var model: OCRCardModel?
+    private let translator = AppleTranslator()
 
     init() {
         panel = KeyablePanel(
@@ -22,8 +43,9 @@ final class OCROverlayController {
     }
 
     func show(text: String) {
-        self.text = text
-        panel.contentView = NSHostingView(rootView: OCRResultView(text: text))
+        let model = OCRCardModel(original: text)
+        self.model = model
+        panel.contentView = NSHostingView(rootView: OCRResultView(model: model, translator: translator))
 
         // 마우스가 있는 스크린 중앙
         let mouse = NSEvent.mouseLocation
@@ -52,6 +74,9 @@ final class OCROverlayController {
             case 36, 76: // Return, keypad Enter
                 self.copyAndClose()
                 return nil
+            case 17 where !event.modifierFlags.contains(.command): // T
+                self.startTranslation()
+                return nil
             default:
                 if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers == "c" {
                     self.copyAndClose()
@@ -62,16 +87,31 @@ final class OCROverlayController {
         }
     }
 
+    private func startTranslation() {
+        guard let model, !model.isTranslating, !model.original.isEmpty else { return }
+        model.error = nil
+        model.isTranslating = true
+        Task {
+            do {
+                model.translation = try await translator.translate(model.original)
+            } catch {
+                model.error = "번역 실패: \(error.localizedDescription)"
+            }
+            model.isTranslating = false
+        }
+    }
+
     private func copyAndClose() {
-        if !text.isEmpty {
+        if let model, !model.original.isEmpty {
             NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(text, forType: .string)
+            NSPasteboard.general.setString(model.clipboardText, forType: .string)
         }
         close()
     }
 
     private func close() {
         panel.orderOut(nil)
+        model = nil
         if let keyMonitor {
             NSEvent.removeMonitor(keyMonitor)
             self.keyMonitor = nil
@@ -85,23 +125,47 @@ private final class KeyablePanel: NSPanel {
 }
 
 private struct OCRResultView: View {
-    let text: String
+    @ObservedObject var model: OCRCardModel
+    @ObservedObject var translator: AppleTranslator
 
     var body: some View {
         VStack(spacing: 12) {
             ScrollView {
-                Text(text.isEmpty ? "(인식된 텍스트 없음)" : text)
-                    .textSelection(.enabled)
-                    .font(.body)
-                    .foregroundStyle(text.isEmpty ? .secondary : .primary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(model.original.isEmpty ? "(인식된 텍스트 없음)" : model.original)
+                        .textSelection(.enabled)
+                        .font(.body)
+                        .foregroundStyle(model.original.isEmpty ? .secondary : .primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if model.isTranslating {
+                        Divider()
+                        HStack(spacing: 6) {
+                            ProgressView().controlSize(.small)
+                            Text("번역 중…").font(.callout).foregroundStyle(.secondary)
+                        }
+                    } else if let error = model.error {
+                        Divider()
+                        Text(error).font(.callout).foregroundStyle(.red)
+                    } else if let translation = model.translation, !translation.isEmpty {
+                        Divider()
+                        Text(translation)
+                            .textSelection(.enabled)
+                            .font(.body)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
             }
-            Text("Enter · ⌘C 복사   ·   ESC 닫기")
+            Text("Enter · ⌘C 복사   ·   T 번역   ·   ESC 닫기")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .padding(16)
         .frame(width: 480, height: 360)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        // 애플 엔진 특화 seam: 세션을 받아 번역 실행. 다른 엔진은 이 줄이 필요 없다.
+        .translationTask(translator.configuration) { session in
+            await translator.runSession(session)
+        }
     }
 }
