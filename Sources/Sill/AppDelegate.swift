@@ -21,6 +21,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             TextRecognizer.recognize(shot.image) { self?.ocrOverlay.show(text: $0) } // 인식은 메모리 이미지로
             self?.store.remove(shot) // 텍스트 추출 = 소비 → 스택에서 제거 (관리 파일이면 삭제, 사용자 폴더 파일은 보존)
         }
+        // ⇧⌘4 캡처 시 ⌘ 쥔 채로 선택을 끝내면 스택 대신 바로 OCR
+        capture.onTextCaptured = { [weak self] image in
+            TextRecognizer.recognize(image) { self?.ocrOverlay.show(text: $0) }
+        }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.image = NSImage(
             systemSymbolName: "camera.viewfinder",
