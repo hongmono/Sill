@@ -18,6 +18,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let settingsWindow = SettingsWindowController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        #if DEBUG
+        TranslationSelfCheck.run() // 엔드포인트·방향 순수 로직 self-check
+        #endif
+        installMainMenu() // 없으면 텍스트 필드에서 ⌘V/⌘X/⌘A가 안 먹음 (accessory 앱엔 기본 메뉴바 없음)
         panelController = StackPanelController(store: store) { [weak self] shot in
             TextRecognizer.recognize(shot.image) { self?.ocrOverlay.show(text: $0) } // 인식은 메모리 이미지로
             self?.store.remove(shot) // 텍스트 추출 = 소비 → 스택에서 제거 (관리 파일이면 삭제, 사용자 폴더 파일은 보존)
@@ -70,6 +74,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.informativeText = "⇧⌘4/⇧⌘3을 다른 앱이 사용 중입니다. 메뉴바 아이콘의 메뉴로 캡처할 수 있습니다."
             alert.runModal()
         }
+    }
+
+    /// accessory 앱은 기본 메뉴바가 없어 텍스트 필드 표준 편집(붙여넣기 등)이 안 된다 — 최소 메뉴로 라우팅만 연결.
+    /// 로컬 이벤트 모니터(프리뷰·OCR 카드)는 sendEvent보다 먼저 실행되므로 카드 단축키는 여기 영향 없이 우선.
+    private func installMainMenu() {
+        let mainMenu = NSMenu()
+
+        // 첫 서브메뉴는 macOS가 앱 메뉴(굵은 앱 이름)로 표시 — Edit가 그 자리에 오지 않게 앞에 둔다.
+        let appItem = NSMenuItem()
+        mainMenu.addItem(appItem)
+        let appMenu = NSMenu()
+        appItem.submenu = appMenu
+        appMenu.addItem(withTitle: "설정...", action: #selector(openSettings), keyEquivalent: ",")
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: "Sill 종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+
+        let editItem = NSMenuItem()
+        mainMenu.addItem(editItem)
+        let editMenu = NSMenu(title: "편집")
+        editItem.submenu = editMenu
+        editMenu.addItem(withTitle: "실행 취소", action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(withTitle: "다시 실행", action: Selector(("redo:")), keyEquivalent: "Z")
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: "잘라내기", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "복사", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "붙여넣기", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "전체 선택", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+
+        NSApp.mainMenu = mainMenu
     }
 
     @objc private func captureInteractive() {
