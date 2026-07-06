@@ -5,19 +5,23 @@ struct StackView: View {
     @ObservedObject var store: ScreenshotStore
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
-                ForEach(store.screenshots) { shot in
-                    ThumbnailView(
-                        shot: shot,
-                        dragEnded: { store.removeAfterDrag(shot) },
-                        copy: { store.copy(shot) },
-                        saveAs: { store.saveAs(shot) },
-                        close: { store.remove(shot) }
-                    )
+        // 콘텐츠를 하단 정렬 — 패널이 하단 앵커(위로 자람)라 기준을 맞춰야 새 항목 삽입 시 기존(아래) 썸네일이 안 움직인다
+        GeometryReader { geo in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 16) {
+                    ForEach(store.screenshots) { shot in
+                        ThumbnailView(
+                            shot: shot,
+                            dragEnded: { store.removeAfterDrag(shot) },
+                            copy: { store.copy(shot) },
+                            saveAs: { store.saveAs(shot) },
+                            close: { store.remove(shot) }
+                        )
+                    }
                 }
+                .padding(8)
+                .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: .bottom)
             }
-            .padding(8)
         }
     }
 }
@@ -29,6 +33,7 @@ struct ThumbnailView: View {
     let saveAs: () -> Void
     let close: () -> Void
     @State private var hovering = false
+    @State private var appeared = false // 새로 추가된 이 썸네일만 슬라이드업+페이드인, 기존 항목엔 발생 안 함
 
     var body: some View {
         Image(nsImage: shot.image)
@@ -57,6 +62,11 @@ struct ThumbnailView: View {
             .scaleEffect(hovering ? 1.04 : 1.0)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: hovering)
             .onHover { hovering = $0 }
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 20) // 아래(+y)에서 시작해 제자리로 올라옴 — offset은 레이아웃 슬롯 불변이라 기존 항목 안 밀림
+            .onAppear {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) { appeared = true }
+            }
     }
 }
 
