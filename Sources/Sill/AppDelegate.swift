@@ -18,7 +18,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         panelController = StackPanelController(store: store) { [weak self] shot in
-            TextRecognizer.recognize(shot.image) { self?.ocrOverlay.show(text: $0) }
+            TextRecognizer.recognize(shot.image) { self?.ocrOverlay.show(text: $0) } // 인식은 메모리 이미지로
+            self?.store.remove(shot) // 텍스트 추출 = 소비 → 스택에서 제거 (관리 파일이면 삭제, 사용자 폴더 파일은 보존)
         }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.image = NSImage(
