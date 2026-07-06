@@ -13,6 +13,10 @@ final class AppSettings: ObservableObject {
         case png, jpg
     }
 
+    enum TranslationEngine: String {
+        case apple, deepl
+    }
+
     @Published var stackSide: StackSide {
         didSet { UserDefaults.standard.set(stackSide.rawValue, forKey: "stackSide") }
     }
@@ -29,6 +33,16 @@ final class AppSettings: ObservableObject {
     /// 캡처 프리뷰에서 OCR을 실행하는 키 (소문자 한 글자)
     @Published var ocrKey: String {
         didSet { UserDefaults.standard.set(ocrKey, forKey: "ocrKey") }
+    }
+
+    /// OCR 카드 번역 엔진 (애플 온디바이스 / DeepL)
+    @Published var translationEngine: TranslationEngine {
+        didSet { UserDefaults.standard.set(translationEngine.rawValue, forKey: "translationEngine") }
+    }
+
+    /// DeepL API 키 — 자격증명이라 UserDefaults 대신 키체인에 저장
+    @Published var deepLAPIKey: String {
+        didSet { Keychain.set(deepLAPIKey, for: "deepl-api-key") }
     }
 
     /// SMAppService 상태가 진실의 원천 — 등록/해제 실패 시 토글 원복
@@ -58,6 +72,8 @@ final class AppSettings: ObservableObject {
         }
         let savedKey = UserDefaults.standard.string(forKey: "ocrKey")
         ocrKey = (savedKey?.isEmpty == false) ? savedKey! : "o"
+        translationEngine = TranslationEngine(rawValue: UserDefaults.standard.string(forKey: "translationEngine") ?? "") ?? .apple
+        deepLAPIKey = Keychain.string(for: "deepl-api-key") ?? ""
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 }

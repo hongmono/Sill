@@ -27,7 +27,7 @@ final class OCROverlayController {
     private let panel: KeyablePanel
     private var keyMonitor: Any?
     private var model: OCRCardModel?
-    private let translator = AppleTranslator()
+    private let appleTranslator = AppleTranslator() // .translationTask 바인딩용 — DeepL 선택 시엔 idle
 
     init() {
         panel = KeyablePanel(
@@ -45,7 +45,7 @@ final class OCROverlayController {
     func show(text: String) {
         let model = OCRCardModel(original: text)
         self.model = model
-        panel.contentView = NSHostingView(rootView: OCRResultView(model: model, translator: translator))
+        panel.contentView = NSHostingView(rootView: OCRResultView(model: model, translator: appleTranslator))
 
         // 마우스가 있는 스크린 중앙
         let mouse = NSEvent.mouseLocation
@@ -91,9 +91,14 @@ final class OCROverlayController {
         guard let model, !model.isTranslating, !model.original.isEmpty else { return }
         model.error = nil
         model.isTranslating = true
+        // 설정 엔진 선택 — 애플은 .translationTask 바인딩 때문에 보유 인스턴스, DeepL은 현재 키로 즉석 생성
+        let settings = AppSettings.shared
+        let engine: Translator = settings.translationEngine == .deepl
+            ? DeepLTranslator(apiKey: settings.deepLAPIKey)
+            : appleTranslator
         Task {
             do {
-                model.translation = try await translator.translate(model.original)
+                model.translation = try await engine.translate(model.original)
             } catch {
                 model.error = "번역 실패: \(error.localizedDescription)"
             }
