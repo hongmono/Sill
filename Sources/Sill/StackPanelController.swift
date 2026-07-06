@@ -11,7 +11,7 @@ final class StackPanelController {
     private let panelWidth: CGFloat = 176
     private let itemHeight: CGFloat = 120 // 썸네일 104 + 간격 16
 
-    init(store: ScreenshotStore) {
+    init(store: ScreenshotStore, onExtractText: @escaping (ScreenshotStore.Screenshot) -> Void) {
         panel = NSPanel(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel],
@@ -24,7 +24,7 @@ final class StackPanelController {
         panel.backgroundColor = .clear
         panel.hidesOnDeactivate = false
 
-        panel.contentView = NSHostingView(rootView: StackView(store: store))
+        panel.contentView = NSHostingView(rootView: StackView(store: store, onExtractText: onExtractText))
 
         // receive(on:main) 필수 — @Published는 값 대입 전(willSet)에 발행하므로, 홉 없이 동기로 돌면
         // layout()이 stale한 store.screenshots를 강제 렌더해 표시가 한 캡처씩 밀린다.

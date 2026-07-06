@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var capture = CaptureService(store: store)
     private var statusItem: NSStatusItem!
     private var panelController: StackPanelController!
+    private let ocrOverlay = OCROverlayController()
     private let hotkeys = HotkeyManager()
     private let updaterController = SPUStandardUpdaterController(
         startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil
@@ -16,7 +17,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let settingsWindow = SettingsWindowController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        panelController = StackPanelController(store: store)
+        panelController = StackPanelController(store: store) { [weak self] shot in
+            TextRecognizer.recognize(shot.image) { self?.ocrOverlay.show(text: $0) }
+        }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.image = NSImage(
             systemSymbolName: "camera.viewfinder",

@@ -3,6 +3,7 @@ import SwiftUI
 
 struct StackView: View {
     @ObservedObject var store: ScreenshotStore
+    let onExtractText: (ScreenshotStore.Screenshot) -> Void
 
     var body: some View {
         // 콘텐츠를 하단 정렬 — 패널이 하단 앵커(위로 자람)라 기준을 맞춰야 새 항목 삽입 시 기존(아래) 썸네일이 안 움직인다
@@ -15,6 +16,7 @@ struct StackView: View {
                             dragEnded: { store.removeAfterDrag(shot) },
                             copy: { store.copy(shot) },
                             saveAs: { store.saveAs(shot) },
+                            extractText: { onExtractText(shot) },
                             close: { store.remove(shot) }
                         )
                     }
@@ -31,6 +33,7 @@ struct ThumbnailView: View {
     let dragEnded: () -> Void
     let copy: () -> Void
     let saveAs: () -> Void
+    let extractText: () -> Void
     let close: () -> Void
     @State private var hovering = false
     @State private var appeared = false // 새로 추가된 이 썸네일만 슬라이드업+페이드인, 기존 항목엔 발생 안 함
@@ -46,7 +49,7 @@ struct ThumbnailView: View {
                     .stroke(Color.black.opacity(0.2), lineWidth: 1)
             )
             .shadow(radius: hovering ? 8 : 4)
-            .overlay(DragArea(shot: shot, dragEnded: dragEnded, copy: copy, saveAs: saveAs))
+            .overlay(DragArea(shot: shot, dragEnded: dragEnded, copy: copy, saveAs: saveAs, extractText: extractText))
             .overlay(alignment: .topTrailing) {
                 if hovering {
                     Button(action: close) {
@@ -76,6 +79,7 @@ struct DragArea: NSViewRepresentable {
     let dragEnded: () -> Void
     let copy: () -> Void
     let saveAs: () -> Void
+    let extractText: () -> Void
 
     func makeNSView(context: Context) -> DragNSView { DragNSView() }
 
@@ -85,6 +89,7 @@ struct DragArea: NSViewRepresentable {
         view.onDragEnded = dragEnded
         view.onCopy = copy
         view.onSaveAs = saveAs
+        view.onExtractText = extractText
     }
 }
 
@@ -94,6 +99,7 @@ final class DragNSView: NSView, NSDraggingSource {
     var onDragEnded: (() -> Void)?
     var onCopy: (() -> Void)?
     var onSaveAs: (() -> Void)?
+    var onExtractText: (() -> Void)?
     private var mouseDownLocation: NSPoint = .zero
     private var isDragging = false
 
@@ -129,6 +135,9 @@ final class DragNSView: NSView, NSDraggingSource {
         let copyItem = NSMenuItem(title: "클립보드에 복사", action: #selector(copyAction), keyEquivalent: "")
         copyItem.target = self
         menu.addItem(copyItem)
+        let ocrItem = NSMenuItem(title: "텍스트 추출", action: #selector(extractTextAction), keyEquivalent: "")
+        ocrItem.target = self
+        menu.addItem(ocrItem)
         let saveItem = NSMenuItem(title: "다른 이름으로 저장...", action: #selector(saveAsAction), keyEquivalent: "")
         saveItem.target = self
         menu.addItem(saveItem)
@@ -141,5 +150,9 @@ final class DragNSView: NSView, NSDraggingSource {
 
     @objc private func saveAsAction() {
         onSaveAs?()
+    }
+
+    @objc private func extractTextAction() {
+        onExtractText?()
     }
 }
