@@ -8,6 +8,11 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Frameworks"
 cp .build/release/Sill "$APP/Contents/MacOS/"
 cp Info.plist "$APP/Contents/"
+# CI(release.yml)와 동일하게 버전 주입 — CFBundleVersion 없으면 Sparkle updater가 시작 못 함.
+VERSION="$(tr -d '[:space:]' < VERSION)"
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :CFBundleVersion string ${VERSION}" "$APP/Contents/Info.plist" \
+  || /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION}" "$APP/Contents/Info.plist"
 mkdir -p "$APP/Contents/Resources" && cp Resources/AppIcon.icns "$APP/Contents/Resources/"
 
 # Sparkle.framework 임베딩 (SPM 바이너리 아티팩트에서 복사)
