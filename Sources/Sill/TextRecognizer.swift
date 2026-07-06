@@ -12,7 +12,8 @@ enum TextRecognizer {
         DispatchQueue.global(qos: .userInitiated).async {
             let request = VNRecognizeTextRequest()
             request.recognitionLevel = .accurate
-            request.usesLanguageCorrection = true
+            // 언어 교정 끔 — 켜면 결과를 사전 단어로 "교정"해 한/영/특수문자 혼합·코드·URL을 뭉갠다. 있는 그대로 인식.
+            request.usesLanguageCorrection = false
             request.recognitionLanguages = ["ko-KR", "en-US"] // 한국어는 macOS 14+(revision 3)
             try? VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
             let text = (request.results ?? [])
