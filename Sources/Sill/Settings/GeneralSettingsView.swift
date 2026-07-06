@@ -36,6 +36,21 @@ struct GeneralSettingsView: View {
                 .frame(width: 160)
             }
 
+            HStack(spacing: SettingsViewLayout.detailRowSpacing) {
+                Text("OCR 단축키 (프리뷰):")
+
+                TextField("", text: Binding(
+                    get: { settings.ocrKey.uppercased() },
+                    set: { newValue in
+                        if let ch = newValue.lowercased().last(where: { $0.isLetter }) {
+                            settings.ocrKey = String(ch)
+                        }
+                    }
+                ))
+                .frame(width: 40)
+                .multilineTextAlignment(.center)
+            }
+
             VStack(alignment: .leading, spacing: 4) {
                 Text("저장 위치:")
 

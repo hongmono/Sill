@@ -85,4 +85,16 @@ final class StackPanelController {
         let mouse = NSEvent.mouseLocation
         return NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
     }
+
+    /// 다음에 추가될 썸네일이 뜰 화면상 위치(맨 위 슬롯) — 프리뷰 fly 애니메이션 목적지.
+    func nextThumbnailFrame() -> NSRect {
+        guard let visible = (anchoredScreen ?? screenUnderMouse)?.visibleFrame else { return .zero }
+        let margin: CGFloat = 16, pad: CGFloat = 8, thumbW: CGFloat = 160, thumbH: CGFloat = 104
+        let height = min(CGFloat(count + 1) * itemHeight, visible.height - margin * 2)
+        let panelTop = visible.minY + margin + height
+        let x = AppSettings.shared.stackSide == .right
+            ? visible.maxX - panelWidth - margin + pad
+            : visible.minX + margin + pad
+        return NSRect(x: x, y: panelTop - pad - thumbH, width: thumbW, height: thumbH)
+    }
 }

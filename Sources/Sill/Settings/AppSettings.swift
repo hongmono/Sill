@@ -26,6 +26,11 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(saveDirectory?.path, forKey: "saveDirectory") }
     }
 
+    /// 캡처 프리뷰에서 OCR을 실행하는 키 (소문자 한 글자)
+    @Published var ocrKey: String {
+        didSet { UserDefaults.standard.set(ocrKey, forKey: "ocrKey") }
+    }
+
     /// SMAppService 상태가 진실의 원천 — 등록/해제 실패 시 토글 원복
     @Published var launchAtLogin: Bool {
         didSet {
@@ -51,6 +56,8 @@ final class AppSettings: ObservableObject {
         } else {
             saveDirectory = nil
         }
+        let savedKey = UserDefaults.standard.string(forKey: "ocrKey")
+        ocrKey = (savedKey?.isEmpty == false) ? savedKey! : "o"
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 }

@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var panelController: StackPanelController!
     private let ocrOverlay = OCROverlayController()
+    private let preview = CapturePreviewController()
     private let hotkeys = HotkeyManager()
     private let updaterController = SPUStandardUpdaterController(
         startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil
@@ -21,10 +22,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             TextRecognizer.recognize(shot.image) { self?.ocrOverlay.show(text: $0) } // 인식은 메모리 이미지로
             self?.store.remove(shot) // 텍스트 추출 = 소비 → 스택에서 제거 (관리 파일이면 삭제, 사용자 폴더 파일은 보존)
         }
-        // ⇧⌘4 캡처 시 ⌘ 쥔 채로 선택을 끝내면 스택 대신 바로 OCR
-        capture.onTextCaptured = { [weak self] image in
+        // 프리뷰: Enter=스택(fly 애니메이션), OCR키=텍스트 추출, ESC=버리기
+        preview.onKeep = { [weak self] image in self?.capture.saveToStack(image) }
+        preview.onOCR = { [weak self] image in
             TextRecognizer.recognize(image) { self?.ocrOverlay.show(text: $0) }
         }
+        preview.stackTargetProvider = { [weak self] in self?.panelController.nextThumbnailFrame() ?? .zero }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.image = NSImage(
             systemSymbolName: "camera.viewfinder",
@@ -55,7 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             keyCode: UInt32(kVK_ANSI_4),
             modifiers: UInt32(cmdKey | shiftKey),
             id: 1
-        ) { [weak self] in self?.capture.captureInteractive() }
+        ) { [weak self] in self?.startRegionCapture() }
         let fullScreenStatus = hotkeys.register(
             keyCode: UInt32(kVK_ANSI_3),
             modifiers: UInt32(cmdKey | shiftKey),
@@ -70,7 +73,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func captureInteractive() {
-        capture.captureInteractive()
+        startRegionCapture()
+    }
+
+    private func startRegionCapture() {
+        capture.captureRegionForPreview { [weak self] image in self?.preview.show(image: image) }
     }
 
     @objc private func captureFullScreen() {
