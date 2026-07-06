@@ -22,7 +22,8 @@ final class CapturePreviewController {
         let frame = NSRect(x: visible.midX - size.width / 2, y: visible.midY - size.height / 2,
                            width: size.width, height: size.height)
 
-        let p = PreviewPanel(contentRect: frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        // .nonactivatingPanel: 앱 활성화(비동기·비신뢰)와 무관하게 패널이 즉시 key가 되게 — 로컬 키 모니터가 곧바로 먹힘
+        let p = PreviewPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         p.level = .floating
         p.isOpaque = false
         p.backgroundColor = .clear
