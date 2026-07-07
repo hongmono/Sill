@@ -23,6 +23,7 @@ final class StackPanelController {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hidesOnDeactivate = false
+        panel.sharingType = .none // 스택 썸네일이 사용자의 다음 스크린샷/녹화에 안 찍히게 (화면엔 계속 보임)
 
         panel.contentView = NSHostingView(rootView: StackView(store: store, onExtractText: onExtractText))
 

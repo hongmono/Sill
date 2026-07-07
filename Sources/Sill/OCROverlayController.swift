@@ -26,6 +26,7 @@ final class OCRCardModel: ObservableObject {
 final class OCROverlayController {
     private let panel: KeyablePanel
     private var keyMonitor: Any?
+    private var resignObserver: Any?
     private var model: OCRCardModel?
     private let appleTranslator = AppleTranslator() // .translationTask 바인딩용 — DeepL 선택 시엔 idle
 
@@ -40,6 +41,7 @@ final class OCROverlayController {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
+        panel.sharingType = .none // OCR 카드가 다음 스크린샷/녹화에 안 찍히게
     }
 
     func show(text: String) {
@@ -65,6 +67,10 @@ final class OCROverlayController {
 
     private func installMonitor() {
         guard keyMonitor == nil else { return }
+        // 다른 앱/창을 클릭해 카드가 key를 잃으면 닫는다 (모달 카드 UX)
+        resignObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification, object: panel, queue: .main
+        ) { [weak self] _ in self?.close() }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
             switch event.keyCode {
@@ -115,12 +121,17 @@ final class OCROverlayController {
     }
 
     private func close() {
-        panel.orderOut(nil)
-        model = nil
+        // orderOut이 didResignKey를 동기 발생시켜 재진입할 수 있으니 옵저버부터 제거
+        if let resignObserver {
+            NotificationCenter.default.removeObserver(resignObserver)
+            self.resignObserver = nil
+        }
         if let keyMonitor {
             NSEvent.removeMonitor(keyMonitor)
             self.keyMonitor = nil
         }
+        panel.orderOut(nil)
+        model = nil
     }
 }
 
