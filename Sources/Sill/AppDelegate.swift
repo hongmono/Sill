@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import Combine
 import Sparkle
 
 // Swift 6(strict concurrency) 전환 시: Carbon 콜백과 AppSettings 격리 재검토 필요
@@ -16,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil
     )
     private let settingsWindow = SettingsWindowController()
+    private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG
@@ -57,6 +59,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(updateItem)
         menu.addItem(withTitle: "종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem.menu = menu
+        // 메뉴바 아이콘 표시 여부를 설정에 연동 (숨겨도 재실행 시 설정창으로 복귀 가능)
+        let settings = AppSettings.shared
+        statusItem.isVisible = settings.showMenuBarIcon
+        settings.$showMenuBarIcon
+            .receive(on: RunLoop.main)
+            .sink { [weak self] in self?.statusItem.isVisible = $0 }
+            .store(in: &cancellables)
         // 시스템 기본 스크린샷 단축키(⇧⌘4/⇧⌘3)를 이 앱이 가로챈다 (Shottr/CleanShot 방식)
         let interactiveStatus = hotkeys.register(
             keyCode: UInt32(kVK_ANSI_4),
@@ -127,5 +136,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openSettings() {
         settingsWindow.show()
+    }
+
+    /// 이미 실행 중인 Sill을 다시 열려고 하면(Finder 재실행/`open -a`) macOS가 이 reopen을
+    /// 기존 인스턴스로 보낸다 — 메뉴바 아이콘을 숨겼을 때도 설정창으로 돌아올 수 있는 경로.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        settingsWindow.show()
+        return true
     }
 }

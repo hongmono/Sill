@@ -21,6 +21,11 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(stackSide.rawValue, forKey: "stackSide") }
     }
 
+    /// 메뉴바 아이콘 표시 여부. 숨겨도 Sill을 한 번 더 실행하면 설정창이 열린다.
+    @Published var showMenuBarIcon: Bool {
+        didSet { UserDefaults.standard.set(showMenuBarIcon, forKey: "showMenuBarIcon") }
+    }
+
     @Published var imageFormat: ImageFormat {
         didSet { UserDefaults.standard.set(imageFormat.rawValue, forKey: "imageFormat") }
     }
@@ -64,6 +69,7 @@ final class AppSettings: ObservableObject {
 
     private init() {
         stackSide = StackSide(rawValue: UserDefaults.standard.string(forKey: "stackSide") ?? "") ?? .right
+        showMenuBarIcon = UserDefaults.standard.object(forKey: "showMenuBarIcon") as? Bool ?? true
         imageFormat = ImageFormat(rawValue: UserDefaults.standard.string(forKey: "imageFormat") ?? "") ?? .png
         if let path = UserDefaults.standard.string(forKey: "saveDirectory"), !path.isEmpty {
             saveDirectory = URL(fileURLWithPath: path)
